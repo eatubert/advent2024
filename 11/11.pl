@@ -10,7 +10,7 @@ INIT {
 }
 
 my $count = 0;
-$count += walkTree($_, 0) for split /\s+/;
+$count += walkTree($_, $rounds) for split /\s+/;
 print $count;
 
 sub step
@@ -27,12 +27,12 @@ sub step
 
 sub walkTree
 {
-    my ($actual, $depth) = @_;
-    return 1 if $depth == $rounds;
+    my ($actual, $round) = @_;
+    return 1 unless $round;
 
     my $total = 0;
     our %cache;
-    $total += ($cache{join ',', $_, $rounds-$depth} //= walkTree($_, $depth+1)) for step($actual);
+    $total += ($cache{join ',', $_, $round} //= walkTree($_, $round-1)) for step($actual);
 
     return $total;
 }
