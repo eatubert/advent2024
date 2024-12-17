@@ -27,20 +27,11 @@ END {
     die unless defined $posx && defined $endx;
 
     my %bestPath;
-    walk($posx, $posy, '>', [], {}, \%bestPath);
-    walk($posx, $posy, '^', [], {}, \%bestPath);
-    walk($posx, $posy, 'v', [], {}, \%bestPath);
-    walk($posx, $posy, '<', ['R'], {}, \%bestPath);
+    walk($posx, $posy, undef, [], {}, \%bestPath);
+    print Dumper \%bestPath;
     print $bestPath{cost};
 }
 
-
-my %directions = (
-    '^' => { x => 0, y => -1 },
-    '<' => { x => -1, y => 0 },
-    'v' => { x => 0, y => 1 },
-    '>' => { x => 1, y => 0},
-);
 
 sub visitedIndex { join ',', @_ }
 
@@ -56,50 +47,44 @@ sub markVisited
     $visited->{visitedIndex($x, $y)} = undef;
 }
 
+sub clearVisited
+{
+    my ($x, $y, $visited) = @_;
+    delete $visited->{visitedIndex($x, $y)};
+}
+
 sub walk
 {
     my ($x, $y, $direction, $path, $visited, $bestPath) = @_;
-    #print join ',', $x, $y, $direction, (join '', @$path), (join '|', keys %$visited);
-    return if isVisited($x, $y, $visited);
+    print STDERR join ',', sprintf('%3i', $x), sprintf('%3i', $y), (join '', @$path), (join '|', keys %$visited);
+    my $c = $map[$y][$x];
 
-    my %newvisited = %$visited;
-    markVisited($x, $y, \%newvisited);
+    markVisited($x, $y, $visited);
+    push @$path, $direction if $direction;
 
-    die  join ',', $x, $y, $direction, (join '', @$path), (join '|', keys %$visited) unless $directions{$direction};
-
-    my $newx = $x + $directions{$direction}{x};
-    my $newy = $y + $directions{$direction}{y};
-    my $newc = $map[$newy][$newx];
-
-    return if $newc eq '#';
-
-    my $newPath = [@$path, $direction];
-
-    if ($newc eq 'E') {
-        my $moves = scalar (grep {/[v^><]/} @$newPath);
+    if ($c eq 'E') {
+        my $moves = scalar (grep {/[v^><]/} @$path);
         my $last = '>';
         my $turns;
-        for (@$newPath) {
+        for (@$path) {
             ++$turns unless $_ eq $last;
             $last = $_;
         }
         my $cost = $moves + $turns * 1000;
 
+        print STDERR join ',', $moves, $turns, $cost, join '', @$path;
+
         if ((not defined $bestPath->{cost}) || ($cost < $bestPath->{cost})) {
-            $bestPath->{path} = join '', @$newPath;
+            $bestPath->{path} = join '', @$path;
             $bestPath->{cost} = $cost;
         }
-
-        return;
+    } else {
+        walk($x+1, $y, '>', $path, $visited, $bestPath) if $map[$y][$x+1] ne '#' && !isVisited($x+1,$y,$visited);
+        walk($x-1, $y, '<', $path, $visited, $bestPath) if $map[$y][$x-1] ne '#' && !isVisited($x-1,$y,$visited);
+        walk($x, $y+1, 'v', $path, $visited, $bestPath) if $map[$y+1][$x] ne '#' && !isVisited($x,$y+1,$visited);
+        walk($x, $y-1, '^', $path, $visited, $bestPath) if $map[$y-1][$x] ne '#' && !isVisited($x,$y-1,$visited);
     }
 
-    walk($newx, $newy, $direction, $newPath, \%newvisited, $bestPath);
-    if ($direction eq '^' || $direction eq 'v') {
-        walk($newx, $newy, '>', $newPath, \%newvisited, $bestPath);
-        walk($newx, $newy, '<', $newPath, \%newvisited, $bestPath);
-    }
-    if ($direction eq '>' || $direction eq '<') {
-        walk($newx, $newy, '^', $newPath, \%newvisited, $bestPath);
-        walk($newx, $newy, 'v', $newPath, \%newvisited, $bestPath);
-    }
+    clearVisited($x, $y, $visited);
+    pop @$path;
 }
